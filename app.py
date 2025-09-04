@@ -70,9 +70,12 @@ def render_streamlit_app():
     # Tabla de frecuencias
     rel_freq = counts / counts.sum() * 100
     cum_freq = counts.cumsum()
+    # Intervalos en notación estándar: [a, b) excepto el último [a, b]
+    intervalos = [f"[{li:.2f}, {ls:.2f})" for li, ls in zip(edges[:-1], edges[1:])]
+    if intervalos:
+        intervalos[-1] = intervalos[-1][:-1] + "]"
     freq_table = pd.DataFrame({
-        "Límite inferior": edges[:-1],
-        "Límite superior": edges[1:],
+        "Intervalo": intervalos,
         "Frecuencia": counts,
         "Frecuencia relativa (%)": rel_freq.round(2),
         "Frecuencia acumulada": cum_freq
