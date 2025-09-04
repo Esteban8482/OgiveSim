@@ -48,7 +48,7 @@ def render_streamlit_app():
 
     st.title("Ogiva (menor-que) e inversa (mayor-que)")
     st.caption(
-        "Lee datos de Google Sheets o, si falla, genera datos simulados para graficar percentiles y distribuciones."
+        "Lee datos de Google Sheets o, si falla, genera datos simulados para graficar percentiles, distribuciones y tabla de frecuencias."
     )
 
     with st.sidebar:
@@ -66,6 +66,17 @@ def render_streamlit_app():
 
     # Ogiva menor-que
     x_plot, y_plot, edges, counts = ogive(data, bins=int(bins))
+
+    # Tabla de frecuencias
+    rel_freq = counts / counts.sum() * 100
+    cum_freq = counts.cumsum()
+    freq_table = pd.DataFrame({
+        "Límite inferior": edges[:-1],
+        "Límite superior": edges[1:],
+        "Frecuencia": counts,
+        "Frecuencia relativa (%)": rel_freq.round(2),
+        "Frecuencia acumulada": cum_freq
+    })
 
     # Ogiva mayor-que
     rev_cum = counts[::-1].cumsum()[::-1]
@@ -113,6 +124,10 @@ def render_streamlit_app():
     st.write(f"Percentil a {pass_mark:.1f} pts: {pass_pct:.1f}% (por debajo)")
     st.write(f"Proporción por encima de {pass_mark:.1f} pts: {above_pct:.1f}%")
     st.write(f"Valor en el percentil 75: {top_quartile_cut:.2f}")
+
+    # Mostrar tabla de frecuencias
+    st.subheader("Tabla de frecuencias")
+    st.dataframe(freq_table, use_container_width=True)
 
 
 # Ejecutar
