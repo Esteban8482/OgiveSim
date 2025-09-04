@@ -26,6 +26,7 @@ def get_data_from_sheet_or_simulated(sheet_id, default_seed=7, n=300):
         return fallback, False
 
 
+
 def ogive(values, bins=10):
     counts, edges = np.histogram(values, bins=bins, range=(values.min(), values.max()))
     cum_counts = counts.cumsum()
@@ -35,12 +36,48 @@ def ogive(values, bins=10):
     return x_plot, y_plot, edges, counts
 
 
+def frequency_table(values, edges, counts):
+    """
+    Calcula la tabla de frecuencias a partir de los bordes e histogramas.
+    Devuelve un DataFrame con intervalos, frecuencia, frecuencia relativa y acumulada.
+    """
+    rel_freq = counts / counts.sum() * 100
+    cum_freq = counts.cumsum()
+    pct = rel_freq.round(2)
+    pct_acum = cum_freq / counts.sum() * 100
+    # Intervalos en notación estándar: [a, b) excepto el último [a, b]
+    intervalos = [f"[{li:.2f}, {ls:.2f})" for li, ls in zip(edges[:-1], edges[1:])]
+    if intervalos:
+        intervalos[-1] = intervalos[-1][:-1] + "]"
+    freq_table = pd.DataFrame({
+        "Intervalo": intervalos,
+        "Frecuencia": counts,
+        "Frecuencia relativa (%)": pct,
+        "Frecuencia acumulada": cum_freq,
+        "% del total": pct,
+        "% acumulado": pct_acum.round(2)
+    })
+    return freq_table
+
+
 def interp_percentile_at(value, x_plot, y_plot):
     return float(np.interp(value, x_plot, y_plot))
 
 
 def interp_value_at(percentile, x_plot, y_plot):
     return float(np.interp(percentile, y_plot, x_plot))
+
+
+
+def ogive_inverse(counts, edges):
+    """
+    Calcula la ogiva mayor-que (inversa) a partir de los histogramas y bordes.
+    """
+    rev_cum = counts[::-1].cumsum()[::-1]
+    y_gt_core = 100 * rev_cum / rev_cum[0]
+    x_gt = np.r_[edges[:-1], edges[-1]]
+    y_gt = np.r_[y_gt_core, 0]
+    return x_gt, y_gt
 
 
 def render_streamlit_app():
@@ -68,24 +105,10 @@ def render_streamlit_app():
     x_plot, y_plot, edges, counts = ogive(data, bins=int(bins))
 
     # Tabla de frecuencias
-    rel_freq = counts / counts.sum() * 100
-    cum_freq = counts.cumsum()
-    # Intervalos en notación estándar: [a, b) excepto el último [a, b]
-    intervalos = [f"[{li:.2f}, {ls:.2f})" for li, ls in zip(edges[:-1], edges[1:])]
-    if intervalos:
-        intervalos[-1] = intervalos[-1][:-1] + "]"
-    freq_table = pd.DataFrame({
-        "Intervalo": intervalos,
-        "Frecuencia": counts,
-        "Frecuencia relativa (%)": rel_freq.round(2),
-        "Frecuencia acumulada": cum_freq
-    })
+    freq_table = frequency_table(data, edges, counts)
 
     # Ogiva mayor-que
-    rev_cum = counts[::-1].cumsum()[::-1]
-    y_gt_core = 100 * rev_cum / rev_cum[0]
-    x_gt = np.r_[edges[:-1], edges[-1]]
-    y_gt = np.r_[y_gt_core, 0]
+    x_gt, y_gt = ogive_inverse(counts, edges)
 
     # Percentiles
     p25, p50, p75 = np.percentile(data, [25, 50, 75])
@@ -101,12 +124,26 @@ def render_streamlit_app():
     ax1.set_xlabel("Valor")
     ax1.set_ylabel("Frecuencia acumulada (%)")
     ax1.grid(alpha=0.2)
+
+    # Marcar cuartiles en la ogiva menor-que
+    for p, y_val, color, label in zip([p25, p50, p75], [25, 50, 75], ["red", "green", "purple"], ["Q1", "Q2", "Q3"]):
+        ax1.axvline(x=p, ymax=y_val / 100, color=color, linestyle="--", alpha=0.7)
+        ax1.axhline(y=y_val, xmax=p / ax1.get_xlim()[1], color=color, linestyle="--", alpha=0.7)
+        ax1.plot(p, y_val, 'o', color=color, label=f'{label} ({p:.1f})')
+
     ax1.legend(loc="lower right")
 
     ax2.plot(x_gt, y_gt, "-o", lw=2, ms=4, color="#ff7f0e", label="Ogiva inversa (mayor-que)")
     ax2.set_title("Ogiva inversa (mayor-que)")
     ax2.set_xlabel("Valor")
     ax2.grid(alpha=0.2)
+
+    # Marcar cuartiles en la ogiva mayor-que
+    for p, y_val, color, label in zip([p25, p50, p75], [75, 50, 25], ["red", "green", "purple"], ["Q1", "Q2", "Q3"]):
+        ax2.axvline(x=p, ymax=y_val / 100, color=color, linestyle="--", alpha=0.7)
+        ax2.axhline(y=y_val, xmax=p / ax2.get_xlim()[1], color=color, linestyle="--", alpha=0.7)
+        ax2.plot(p, y_val, 'o', color=color, label=f'{label} ({p:.1f})')
+
     ax2.legend(loc="upper right")
 
     plt.tight_layout()
