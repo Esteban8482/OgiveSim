@@ -94,12 +94,12 @@ def render_streamlit_app():
             "Número de clases (bins)", min_value=5, max_value=30, value=12, step=1
         )
 
-        SHEET_ID = "10qzbSjIYQXPxjjNn9ELzXyDow_bgwSwdWcYlxAFrSuI"
-        data, from_sheet = get_data_from_sheet_or_simulated(SHEET_ID)
-
-        pass_mark = st.slider(
-            "Umbral (puntos)", min_value=0.0, max_value=100.0, value=60.0, step=0.5
+        n_datos = st.slider(
+            "Cantidad de datos simulados", min_value=50, max_value=1000, value=300, step=50
         )
+
+        SHEET_ID = "10qzbSjIYQXPxjjNn9ELzXyDow_bgwSwdWcYlxAFrSuI"
+        data, from_sheet = get_data_from_sheet_or_simulated(SHEET_ID, n=n_datos)
 
     # Ogiva menor-que
     x_plot, y_plot, edges, counts = ogive(data, bins=int(bins))
@@ -112,9 +112,7 @@ def render_streamlit_app():
 
     # Percentiles
     p25, p50, p75 = np.percentile(data, [25, 50, 75])
-    pass_pct = interp_percentile_at(pass_mark, x_plot, y_plot)
     top_quartile_cut = interp_value_at(75, x_plot, y_plot)
-    above_pct = float(np.interp(pass_mark, x_gt, y_gt))
 
     # Gráfica
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5), sharey=True, sharex=True)
@@ -161,8 +159,6 @@ def render_streamlit_app():
     else:
         st.warning("Usando datos simulados ⚠️")
 
-    st.write(f"Percentil a {pass_mark:.1f} pts: {pass_pct:.1f}% (por debajo)")
-    st.write(f"Proporción por encima de {pass_mark:.1f} pts: {above_pct:.1f}%")
     st.write(f"Valor en el percentil 75: {top_quartile_cut:.2f}")
 
     # Mostrar tabla de frecuencias
